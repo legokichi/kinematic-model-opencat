@@ -8,7 +8,7 @@ import numpy as np
 from numpy import sin, cos, pi
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
-
+from PIL import Image
 
 deg2rad = pi/180
 rad2deg = 180/pi
@@ -21,12 +21,12 @@ bodyWidth      = 9.7
 
 # Variable parameters
 distanceFloor  = 6.0    # Distance torso to floor
-stepLength     = 3.5    # Longitudinal movement of each paw within one period
-swingHeight    = 0.5    # Amplitude for swing
-swingFactorLegs = 5     # Increase swing amplitude for legs
+stepLength     = 2.0    # Longitudinal movement of each paw within one period
+swingHeight    = 2.0    # Amplitude for swing
+swingFactorLegs = 1     # Increase swing amplitude for legs
 leanForward =  0.0      # Shifting torso in x-direction
 stanceFront = 0.0       # Distance of front paws from shoulder in x-direction
-stanceBack = 3          # Distance of back paws from hip in negative x-direction
+stanceBack = 2.0          # Distance of back paws from hip in negative x-direction
 
 # Number of Frames
 frames = 57
@@ -183,22 +183,23 @@ def buildGait(frames):
 longitudinalMovement, verticalMovement = buildGait(frames)
 plt.plot(longitudinalMovement)
 plt.plot(verticalMovement)
-plt.show()
+plt.savefig("Bittle_phase")
+# plt.show()
 plt.close()
 
 shiftFrame = np.round(np.array([0, pi/2, pi, 3*pi/2])/2/pi*frames)
 #shiftFrame = np.round(np.array([0, pi, pi, 0])/2/pi*frames)
 #shiftFrame = np.round(np.array([0, 0, pi, pi])/2/pi*frames)
 shiftFrame = shiftFrame.astype(int)
-
+f = open("gait_sequence.csv", "w")
 for frame in range(0, frames):
-    right_arm_angles_raw = right_arm.inverse_kinematics(target_position = np.array([stanceFront+stepLength*longitudinalMovement[frame], -bodyWidth/2 ,swingHeight*verticalMovement[frame]]))
+    right_arm_angles_raw = right_arm.inverse_kinematics(target_position = np.array([ stanceFront          +stepLength*longitudinalMovement[frame              ], -bodyWidth/2 ,                swingHeight*verticalMovement[frame]]))
     right_arm_correction = np.array([0, -pi/2, pi/2, 0])
     right_arm_angles = np.round(rad2deg*(right_arm_angles_raw+right_arm_correction))
     right_arm_angles = np.delete(right_arm_angles, np.s_[0,3], axis=0)
     right_arm_angles = right_arm_angles.astype(int)
 
-    right_leg_angles_raw = right_leg.inverse_kinematics(target_position = np.array([-stanceBack-bodyLength+stepLength*longitudinalMovement[frame+shiftFrame[1]], -bodyWidth/2 , swingFactorLegs*swingHeight*verticalMovement[frame+shiftFrame[1]]]))    
+    right_leg_angles_raw = right_leg.inverse_kinematics(target_position = np.array([-stanceBack-bodyLength+stepLength*longitudinalMovement[frame+shiftFrame[1]], -bodyWidth/2 ,swingFactorLegs*swingHeight*verticalMovement[frame+shiftFrame[1]]]))    
     right_leg_correction = np.array([0, 0, -pi/2, pi/2, 0])
     right_leg_angles = np.round(rad2deg*(right_leg_angles_raw+right_leg_correction))
     right_leg_angles = np.delete(right_leg_angles, np.s_[0,1,4], axis=0)
@@ -220,12 +221,12 @@ for frame in range(0, frames):
     # Writing sequence to file
     gait_sequence = np.concatenate((left_arm_angles, right_arm_angles, right_leg_angles, left_leg_angles))
     print(frame," ",gait_sequence)
-    f = open("gait_sequence.csv", "a")
+    
     #f.write("[")
     np.savetxt(f, gait_sequence[[0,2,4,6,1,3,5,7]],  fmt='%3.1i', delimiter=',', newline=', ')
     #f.write("],")
     f.write("\n") 
-    f.close()
+    
     
     # Create plot and image for each frame
     fig = plt.figure()
@@ -246,6 +247,16 @@ for frame in range(0, frames):
 
     figureName = "Bittle_" + str(frame)
     plt.savefig(figureName)
+    # plt.show()
     plt.close()
-    #plt.show()
+f.close()
+ims = []
+for frame in range(0, frames):
+  figureName = "Bittle_" + str(frame)
+  im = Image.open("Bittle_" + str(frame) + ".png")
+  ims.append(im)
+
+im = Image.new('RGB', (480, 640))
+im.save('out.gif', save_all=True, append_images=ims, loop=0,duration=3)
+
 
